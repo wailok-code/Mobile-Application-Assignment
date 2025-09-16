@@ -603,7 +603,7 @@ class _HomePageState extends State<HomePage> {
         Navigator.pushNamed(context, '/my-services');
         break;
       case 3: // Billing
-        // Navigate to Billing page when implemented
+        Navigator.pushNamed(context, '/billings');
         break;
       case 4: // Profile
         Navigator.pushNamed(

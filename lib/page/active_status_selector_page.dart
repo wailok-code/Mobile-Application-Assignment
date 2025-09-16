@@ -92,19 +92,43 @@ class _ActiveStatusSelectorPageState extends State<ActiveStatusSelectorPage> {
   }
 }
 
-class StatusOption {
-  final String label;
-  final List<String> statuses;
-  final Color color;
-
-  const StatusOption({required this.label, required this.statuses, required this.color});
-}
-
 
 class _FilteredActiveList extends StatelessWidget {
   final String selectedFilter; // All, Pending, Confirmed, In Progress, Cancelled
 
   const _FilteredActiveList({required this.selectedFilter});
+
+  Stream<QuerySnapshot> _buildQuery(String userId, String selected) {
+    final base = FirebaseFirestore.instance
+        .collection('bookings')
+        .where('userId', isEqualTo: userId);
+
+     Query query;
+     switch (selected) {
+       case 'Pending':
+         // Check for both lowercase and capitalized versions
+         query = base.where('status', whereIn: ['pending']);
+         break;
+       case 'Confirmed':
+         query = base.where('status', whereIn: ['confirmed']);
+         break;
+       case 'In Progress':
+         query = base.where('status', whereIn: ['in_progress']);
+         break;
+       case 'Completed':
+         query = base.where('status', whereIn: ['completed']);
+         break;
+       case 'Cancelled':
+         query = base.where('status', whereIn: ['cancelled']);
+         break;
+       default: // 'All'
+         query = base; // Show ALL service records without status filter
+     }
+    
+    // Always return snapshots without orderBy to avoid missing date field issues
+    // We'll sort in memory instead
+    return query.snapshots();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -114,10 +138,55 @@ class _FilteredActiveList extends StatelessWidget {
     }
 
     return StreamBuilder<QuerySnapshot>(
-      stream: _queryFor(user.uid, selectedFilter),
+      stream: _buildQuery(user.uid, selectedFilter),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return const Center(child: Text('Something went wrong'));
+          debugPrint('Firestore Error: ${snapshot.error}');
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Colors.red[400],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Something went wrong',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    'Error: ${snapshot.error}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    // Force refresh by rebuilding the widget
+                    (context as Element).markNeedsBuild();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFC107),
+                    foregroundColor: Colors.black,
+                  ),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(Color(0xFFFFC107))));
@@ -127,12 +196,21 @@ class _FilteredActiveList extends StatelessWidget {
         }
 
         final docs = snapshot.data!.docs.toList();
+        debugPrint('Found ${docs.length} documents for filter: $selectedFilter');
+        
         docs.sort((a, b) {
           final aData = a.data() as Map<String, dynamic>;
           final bData = b.data() as Map<String, dynamic>;
-          final aDate = _parseDate(aData['date']);
-          final bDate = _parseDate(bData['date']);
-          return aDate.compareTo(bDate);
+          
+          try {
+            final aDate = _parseDateSafely(aData['date']);
+            final bDate = _parseDateSafely(bData['date']);
+            return aDate.compareTo(bDate);
+          } catch (e) {
+            debugPrint('Error sorting dates: $e');
+            // If date comparison fails, sort by document ID as fallback
+            return a.id.compareTo(b.id);
+          }
         });
 
         return ListView.builder(
@@ -148,39 +226,6 @@ class _FilteredActiveList extends StatelessWidget {
     );
   }
 
-  Stream<QuerySnapshot> _queryFor(String userId, String selected) {
-    final base = FirebaseFirestore.instance
-        .collection('bookings')
-        .where('userId', isEqualTo: userId);
-
-     Query query;
-     switch (selected) {
-       case 'Pending':
-         query = base.where('status', isEqualTo: 'pending');
-         break;
-       case 'Confirmed':
-         query = base.where('status', isEqualTo: 'confirmed');
-         break;
-       case 'In Progress':
-         query = base.where('status', isEqualTo: 'in_progress');
-         break;
-       case 'Completed':
-         query = base.where('status', isEqualTo: 'completed');
-         break;
-       case 'Cancelled':
-         query = base.where('status', isEqualTo: 'cancelled');
-         break;
-       default: // 'All'
-         query = base; // Show ALL service records without status filter
-     }
-    
-    // For 'All' filter, don't use orderBy to avoid index issues
-    if (selected == 'All') {
-      return query.snapshots();
-    } else {
-      return query.orderBy('date', descending: false).snapshots();
-    }
-  }
 }
 
 class _BookingCard extends StatelessWidget {
@@ -483,6 +528,29 @@ DateTime _parseDate(dynamic date) {
     if (parsed != null) return parsed;
   }
   return DateTime.now();
+}
+
+DateTime _parseDateSafely(dynamic date) {
+  try {
+    if (date is Timestamp) {
+      return date.toDate();
+    }
+    if (date is String && date.isNotEmpty) {
+      final parsed = DateTime.tryParse(date);
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+    if (date is int) {
+      // Handle Unix timestamp in milliseconds
+      return DateTime.fromMillisecondsSinceEpoch(date);
+    }
+    // If date is null or invalid, return a very old date so it sorts last
+    return DateTime(1900);
+  } catch (e) {
+    debugPrint('Error parsing date: $date, error: $e');
+    return DateTime(1900);
+  }
 }
 
 

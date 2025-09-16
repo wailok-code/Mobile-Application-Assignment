@@ -278,7 +278,7 @@ class _ProfilePageState extends State<ProfilePage> {
         Navigator.pushReplacementNamed(context, '/my-services');
         break;
       case 3: // Billing
-        // Navigate to Billing page when implemented
+        Navigator.pushReplacementNamed(context, '/billings');
         break;
       case 4: // Profile (current page)
         // Already on this page, do nothing

@@ -198,7 +198,7 @@ class _BookServicePageState extends State<BookServicePage> {
         Navigator.pushNamed(context, '/my-services');
         break;
       case 3: // Billing
-        // Navigate to Billing page when implemented
+        Navigator.pushNamed(context, '/billings');
         break;
       case 4: // Profile
         Navigator.pushReplacementNamed(context, '/profile');

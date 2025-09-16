@@ -39,7 +39,7 @@ class _BillingPageState extends State<BillingPage> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -71,6 +71,7 @@ class _BillingPageState extends State<BillingPage> {
         backgroundColor: const Color(0xFFFFC107),
         elevation: 0,
         centerTitle: true,
+        automaticallyImplyLeading: false,
         iconTheme: const IconThemeData(color: Colors.black),
         title: const Text(
           'E-Billings & Payment',

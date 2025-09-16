@@ -273,7 +273,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
         // Already on this page, do nothing
         break;
       case 3: // Billing
-        // Navigate to Billing page when implemented
+        Navigator.pushReplacementNamed(context, '/billings');
         break;
       case 4: // Profile
         Navigator.pushReplacementNamed(context, '/profile');

@@ -14,7 +14,8 @@ import 'page/reset_password_page.dart';
 import 'page/profile_page.dart';
 import 'page/edit_profile_page.dart';
 import 'page/my_services_page.dart';
-
+import 'page/billings.dart';
+import 'services/invoice_service.dart';
 void main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
@@ -99,6 +100,10 @@ class MyApp extends StatelessWidget {
           // If user is logged in, go to home page
           if (snapshot.hasData && snapshot.data != null) {
             debugPrint('User is logged in: ${snapshot.data?.uid}');
+            // Start invoice monitoring for this user
+            InvoiceService.startInvoiceMonitoring();
+            // Process any existing completed bookings that don't have invoices
+            InvoiceService.processExistingCompletedBookings();
             return const HomePage();
           }
           
@@ -120,6 +125,7 @@ class MyApp extends StatelessWidget {
         '/profile': (context) => const ProfilePage(),
         '/edit-profile': (context) => const EditProfilePage(),
         '/my-services': (context) => const MyServicesPage(),
+        '/billings': (context) => const BillingPage(),
       },
     );
   }
